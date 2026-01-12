@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Buddy",
+  "version": "0.0.1",
+  "description": "A productivity extension to keep you focused",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Focus Buddy"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "/public/robots.txt",
+    "48": "/public/robots.txt",
+    "128": "/public/robots.txt"
+  }
+}
