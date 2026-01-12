@@ -3,17 +3,31 @@
   "name": "Focus Buddy",
   "version": "0.0.1",
   "description": "A productivity extension to keep you focused",
-  "permissions": ["storage"],
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "Focus Buddy"
-  },
+  "permissions": ["storage", "tabs", "windows"],
   "background": {
     "service_worker": "background.js"
   },
+  "offscreen_documents": [
+    {
+      "page": "offscreen.html",
+      "reasons": ["AUDIO_PLAYBACK"],
+      "justification": "Play focus reminder audio cues"
+    }
+  ],
   "icons": {
-    "16": "/public/robots.txt",
-    "48": "/public/robots.txt",
-    "128": "/public/robots.txt"
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Focus Buddy",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
   }
 }

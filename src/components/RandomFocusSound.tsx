@@ -15,10 +15,26 @@ const builtInSounds: Sound[] = [
   { id: 'tone', name: 'Focus Tone', isBuiltIn: true },
 ];
 
+// Create a single persistent AudioContext to avoid suspension issues
+let globalAudioContext: AudioContext | null = null;
+
+const getAudioContext = () => {
+  if (!globalAudioContext) {
+    globalAudioContext = new (window.AudioContext ||
+      (window as any).webkitAudioContext)();
+  }
+  return globalAudioContext;
+};
+
 // Generate built-in sounds using Web Audio API
-const playBuiltInSound = (soundId: string) => {
-  const audioContext = new (window.AudioContext ||
-    (window as any).webkitAudioContext)();
+const playBuiltInSound = async (soundId: string) => {
+  const audioContext = getAudioContext();
+
+  // Ensure audio context is running (not suspended)
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
 
@@ -81,13 +97,17 @@ const playBuiltInSound = (soundId: string) => {
   }
 };
 
-interface BackgroundState {
-  isRunning: boolean;
-  nextSoundTime: number | null;
-  timeUntilNextSound: number;
+interface RandomFocusSoundProps {
+  // When true, show a helper button to open the dedicated focus tab
+  showOpenInTabButton?: boolean;
+  // When true (used in popup), Start will open a small focus window instead of running timers locally in the popup
+  launchesWindowOnStart?: boolean;
 }
 
-const RandomFocusSound = () => {
+const RandomFocusSound = ({
+  showOpenInTabButton,
+  launchesWindowOnStart,
+}: RandomFocusSoundProps) => {
   const [minMinutes, setMinMinutes] = useState(2);
   const [maxMinutes, setMaxMinutes] = useState(10);
   const [isRunning, setIsRunning] = useState(false);
@@ -99,6 +119,8 @@ const RandomFocusSound = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
+  const isRunningRef = useRef(false);
 
   // Load and persist settings
   useEffect(() => {
@@ -135,7 +157,7 @@ const RandomFocusSound = () => {
     }
   }, [minMinutes, maxMinutes, selectedSound, customSounds]);
 
-  const playSound = useCallback(() => {
+  const playSound = useCallback(async () => {
     // Visual feedback animation
     setIsPlaying(true);
     setTimeout(() => setIsPlaying(false), 600);
@@ -150,78 +172,179 @@ const RandomFocusSound = () => {
         audioRef.current.currentTime = 0;
       }
       audioRef.current = new Audio(customSound.dataUrl);
-      audioRef.current.play().catch(console.error);
+
+      try {
+        await audioRef.current.play();
+      } catch (error) {
+        console.error('Error playing custom sound:', error);
+      }
     } else {
       // Play built-in sound using Web Audio API
-      playBuiltInSound(selectedSound);
+      await playBuiltInSound(selectedSound);
     }
   }, [selectedSound, customSounds]);
 
-  // Sync with background worker state
-  useEffect(() => {
-    const syncState = () => {
-      try {
-        chrome.runtime.sendMessage({ action: 'getState' }, (response: any) => {
-          if (response && !chrome.runtime.lastError) {
-            setIsRunning(response.isRunning);
-            setTimeUntilNextSound(response.timeUntilNextSound || 0);
-          }
-        });
-      } catch (error) {
-        console.error('Error syncing state:', error);
-      }
-    };
-
-    syncState();
-    const interval = setInterval(syncState, 1000);
-
-    // Listen for messages from background worker
-    const handleMessage = (message: any) => {
-      if (message.action === 'playSound') {
-        playSound();
-      }
-    };
-
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.onMessage.addListener(handleMessage);
+  const scheduleNextSound = useCallback(() => {
+    // Clear any existing timers
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (countdownRef.current !== null) {
+      window.clearInterval(countdownRef.current);
+      countdownRef.current = null;
     }
 
-    return () => {
-      clearInterval(interval);
-      if (typeof chrome !== 'undefined' && chrome.runtime) {
-        chrome.runtime.onMessage.removeListener(handleMessage);
-      }
-    };
-  }, [playSound]);
+    // Compute next delay in milliseconds
+    const minMs = minMinutes * 60 * 1000;
+    const maxMs = maxMinutes * 60 * 1000;
+    const delay = Math.floor(
+      minMs + Math.random() * Math.max(0, maxMs - minMs)
+    );
+
+    setTimeUntilNextSound(delay);
+
+    // Countdown display
+    countdownRef.current = window.setInterval(() => {
+      setTimeUntilNextSound((prev) => {
+        if (!isRunningRef.current) return 0;
+        const next = prev - 1000;
+        return next > 0 ? next : 0;
+      });
+    }, 1000);
+
+    // Actual sound trigger
+    timerRef.current = window.setTimeout(() => {
+      if (!isRunningRef.current) return;
+      playSound();
+      scheduleNextSound();
+    }, delay);
+  }, [minMinutes, maxMinutes, playSound]);
 
   const handleStart = () => {
     if (minMinutes >= maxMinutes) {
       alert('Min must be less than Max');
       return;
     }
-    try {
-      chrome.runtime.sendMessage({
-        action: 'start',
-        minMinutes,
-        maxMinutes,
-        selectedSound,
-        customSounds,
-      });
-      setIsRunning(true);
-    } catch (error) {
-      console.error('Error starting timer:', error);
+
+    // In popup: open dedicated small window and let that instance own the timers
+    if (launchesWindowOnStart) {
+      try {
+        const url =
+          typeof chrome !== 'undefined' && chrome.runtime?.getURL
+            ? chrome.runtime.getURL('index.html')
+            : '/index.html';
+
+        if (typeof chrome !== 'undefined' && (chrome as any).windows) {
+          (chrome as any).windows.create({
+            url: url + '?autostart=true',
+            type: 'popup',
+            width: 420,
+            height: 520,
+            focused: true,
+          });
+        } else if (typeof chrome !== 'undefined' && (chrome as any).tabs) {
+          (chrome as any).tabs.create({ url: url + '?autostart=true' });
+        } else {
+          window.open(
+            url + '?autostart=true',
+            '_blank',
+            'width=420,height=520'
+          );
+        }
+
+        // Also start timer locally in popup for backup
+        isRunningRef.current = true;
+        setIsRunning(true);
+        scheduleNextSound();
+      } catch (error) {
+        console.error('Error opening focus window:', error);
+      }
+
+      return;
     }
+
+    isRunningRef.current = true;
+    setIsRunning(true);
+    scheduleNextSound();
   };
 
   const handleStop = () => {
-    try {
-      chrome.runtime.sendMessage({ action: 'stop' });
-    } catch (error) {
-      console.error('Error stopping timer:', error);
-    }
+    isRunningRef.current = false;
     setIsRunning(false);
     setTimeUntilNextSound(0);
+
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (countdownRef.current !== null) {
+      window.clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
   };
+
+  // Auto-start from URL parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('autostart') === 'true' && !isRunning) {
+        isRunningRef.current = true;
+        setIsRunning(true);
+        scheduleNextSound();
+      }
+    }
+  }, []);
+
+  // Ensure audio context stays active even when tab is in background
+  useEffect(() => {
+    const audioContext = getAudioContext();
+
+    // Periodically resume audio context to prevent suspension
+    const keepAlive = setInterval(() => {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+      }
+    }, 5000); // Check every 5 seconds
+
+    const handleFocus = () => {
+      // Resume audio context when window gains focus
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Resume audio context when page becomes visible
+      if (
+        document.visibilityState === 'visible' &&
+        audioContext.state === 'suspended'
+      ) {
+        audioContext.resume().catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(keepAlive);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [playSound]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+      if (countdownRef.current !== null) {
+        window.clearInterval(countdownRef.current);
+      }
+    };
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -268,16 +391,10 @@ const RandomFocusSound = () => {
     <div className='w-[360px] bg-background p-5'>
       {/* Header */}
       <div className='flex items-center gap-3 mb-6'>
-        <div
-          className={`p-2.5 rounded-xl bg-primary/10 transition-all duration-300 ${
-            isPlaying ? 'animate-sound-pulse' : ''
-          } ${isRunning ? 'animate-glow' : ''}`}
-        >
-          <Volume2 className='w-5 h-5 text-primary' />
-        </div>
+        <img src='/logo.png' alt='Focus Buddy' className='w-8 h-8 rounded-lg' />
         <div>
           <h1 className='text-lg font-semibold text-foreground tracking-tight'>
-            Random Focus Sound
+            Focus Buddy
           </h1>
           <p className='text-xs text-muted-foreground'>
             Stay focused with random reminders
@@ -467,6 +584,32 @@ const RandomFocusSound = () => {
           Stop
         </button>
       </div>
+
+      {showOpenInTabButton && (
+        <div className='mt-3 flex justify-center'>
+          <button
+            type='button'
+            onClick={() => {
+              try {
+                const url =
+                  typeof chrome !== 'undefined' && chrome.runtime?.getURL
+                    ? chrome.runtime.getURL('index.html')
+                    : '/';
+                if (typeof chrome !== 'undefined' && (chrome as any).tabs) {
+                  (chrome as any).tabs.create({ url });
+                } else {
+                  window.open(url, '_blank');
+                }
+              } catch (error) {
+                console.error('Error opening focus tab:', error);
+              }
+            }}
+            className='mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline'
+          >
+            Open dedicated focus tab
+          </button>
+        </div>
+      )}
 
       {/* Status Indicator */}
       {isRunning && (
