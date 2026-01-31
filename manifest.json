@@ -3,7 +3,7 @@
   "name": "Focus Buddy",
   "version": "0.0.1",
   "description": "A productivity extension to keep you focused",
-  "permissions": ["storage", "tabs", "windows"],
+  "permissions": ["storage", "windows"],
   "background": {
     "service_worker": "background.js"
   },
