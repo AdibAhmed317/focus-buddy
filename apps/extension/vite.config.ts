@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     {
       name: 'copy-manifest',
       writeBundle() {
-        const manifest = path.resolve(__dirname, 'manifest.json');
+        const manifest = path.resolve(__dirname, 'public/manifest.json');
         const dest = path.resolve(__dirname, 'dist', 'manifest.json');
         fs.copyFileSync(manifest, dest);
       },
@@ -30,10 +30,10 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       input: {
-        popup: path.resolve(__dirname, 'popup.html'),
+        popup: path.resolve(__dirname, 'public/popup.html'),
         background: path.resolve(__dirname, 'src/background.ts'),
-        offscreen: path.resolve(__dirname, 'offscreen.html'),
-        index: path.resolve(__dirname, 'index.html'),
+        offscreen: path.resolve(__dirname, 'public/offscreen.html'),
+        index: path.resolve(__dirname, 'public/index.html'),
       },
       output: {
         entryFileNames: '[name].js',
