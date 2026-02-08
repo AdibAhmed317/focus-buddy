@@ -1,15 +1,17 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
+import type { Metadata } from 'next';
+import { Nunito } from 'next/font/google';
+import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] })
+const nunito = Nunito({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Focus Buddy - Stay Focused, Boost Productivity',
-  description: 'Focus Buddy helps you stay on track with attention and focus management.',
+  title: 'Focus Buddy - Gentle reminders to refocus',
+  description:
+    'Focus Buddy plays soft, random sounds to nudge you back on task without breaking your flow.',
   openGraph: {
-    title: 'Focus Buddy - Stay Focused, Boost Productivity',
-    description: 'Focus Buddy helps you stay on track with attention and focus management.',
+    title: 'Focus Buddy - Gentle reminders to refocus',
+    description:
+      'Focus Buddy plays soft, random sounds to nudge you back on task without breaking your flow.',
     url: 'https://focusbuddy.app',
     siteName: 'Focus Buddy',
     type: 'website',
@@ -17,18 +19,18 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Focus Buddy',
-    description: 'Stay Focused, Boost Productivity',
+    description: 'Gentle reminders to bring you back to focus.',
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang='en'>
+      <body className={nunito.className}>{children}</body>
     </html>
-  )
+  );
 }

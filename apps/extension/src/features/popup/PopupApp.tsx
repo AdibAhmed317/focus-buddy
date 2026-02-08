@@ -1,9 +1,7 @@
-import { createRoot } from 'react-dom/client';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
-import './index.css';
 
-const Popup = () => {
+export const PopupApp = () => {
   const handleOpen = () => {
     try {
       const url =
@@ -12,13 +10,25 @@ const Popup = () => {
           : '/index.html';
 
       if (typeof chrome !== 'undefined' && (chrome as any).windows) {
-        (chrome as any).windows.create({
-          url: url,
-          type: 'popup',
-          width: 420,
-          height: 520,
-          focused: true,
-        });
+        (chrome as any).windows.create(
+          {
+            url: url,
+            type: 'popup',
+            width: 420,
+            height: 520,
+            focused: true,
+          },
+          (createdWindow: any) => {
+            if (createdWindow?.id) {
+              chrome.runtime.sendMessage({
+                type: 'REGISTER_FOCUS_WINDOW',
+                windowId: createdWindow.id,
+                width: 420,
+                height: 520,
+              });
+            }
+          },
+        );
       } else if (typeof chrome !== 'undefined' && (chrome as any).tabs) {
         (chrome as any).tabs.create({ url });
       } else {
@@ -37,11 +47,11 @@ const Popup = () => {
         <img
           src='/logo.png'
           alt='Focus Buddy'
-          className='w-12 h-12 rounded-lg'
+          className='h-12 w-12 rounded-lg'
         />
         <button
           onClick={handleOpen}
-          className='w-full h-10 rounded-lg bg-success text-success-foreground font-semibold text-sm shadow-button hover:opacity-90 active:scale-[0.98] transition-all'
+          className='h-10 w-full rounded-lg bg-success text-success-foreground shadow-button transition-all hover:opacity-90 active:scale-[0.98]'
         >
           Open Focus Buddy
         </button>
@@ -49,5 +59,3 @@ const Popup = () => {
     </div>
   );
 };
-
-createRoot(document.getElementById('root')!).render(<Popup />);

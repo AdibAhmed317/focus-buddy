@@ -3,7 +3,8 @@
   "name": "Focus Buddy",
   "version": "0.0.2",
   "description": "A productivity extension to keep you focused",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms", "declarativeNetRequest", "offscreen"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },

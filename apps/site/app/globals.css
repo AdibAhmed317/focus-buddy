@@ -7,9 +7,50 @@ html {
 }
 
 body {
-  @apply bg-white;
+  @apply bg-[#f7f5f0] text-[#2f3a34];
 }
 
 * {
   @apply antialiased;
+}
+
+.fade-up {
+  animation: fade-up 0.7s ease-out both;
+}
+
+.fade-up-delayed {
+  animation: fade-up 0.8s ease-out 0.15s both;
+}
+
+.float-soft {
+  animation: float-soft 6s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up,
+  .fade-up-delayed,
+  .float-soft {
+    animation: none;
+  }
 }
