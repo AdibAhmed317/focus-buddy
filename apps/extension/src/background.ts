@@ -37,6 +37,7 @@ const updateBlockingRules = async (sites: BlockedSite[], isActive: boolean) => {
         await chrome.declarativeNetRequest.updateDynamicRules({
           removeRuleIds: ruleIdsToRemove,
         });
+        console.log('Website blocking disabled, removed all rules');
       }
       return;
     }
@@ -70,29 +71,48 @@ const updateBlockingRules = async (sites: BlockedSite[], isActive: boolean) => {
     ]);
 
     // Update rules
-    await chrome.declarativeNetRequest.updateDynamicRules({
+    const updateResult = await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: ruleIdsToRemove,
       addRules: rules,
     });
 
-    console.log(`Blocking ${sites.length} sites with ${rules.length} rules`);
     console.log(
-      'Active blocking rules:',
-      rules.map((r) => ({ id: r.id, urlFilter: r.condition.urlFilter })),
+      `✅ Website blocking ACTIVE: ${sites.length} sites blocked with ${rules.length} rules`,
+    );
+    console.log(
+      'Blocking rules:',
+      rules.map((r) => ({ id: r.id, domain: r.condition.urlFilter })),
     );
   } catch (error) {
-    console.error('Failed to update blocking rules:', error);
+    console.error('❌ Failed to update blocking rules:', error);
+    throw error;
   }
 };
 
 const enableBlocking = async () => {
-  const result = await chrome.storage.local.get(['blockedSites']);
-  const sites = result.blockedSites || [];
-  await updateBlockingRules(sites, true);
+  try {
+    const result = await chrome.storage.local.get(['blockedSites']);
+    const sites = result.blockedSites || [];
+    if (sites.length > 0) {
+      console.log(
+        `🔒 Enabling website blocking with ${sites.length} blocked sites...`,
+      );
+      await updateBlockingRules(sites, true);
+    } else {
+      console.log('✅ Website blocking enabled but no sites to block');
+    }
+  } catch (error) {
+    console.error('Failed to enable blocking:', error);
+  }
 };
 
 const disableBlocking = async () => {
-  await updateBlockingRules([], false);
+  try {
+    console.log('🔓 Disabling website blocking...');
+    await updateBlockingRules([], false);
+  } catch (error) {
+    console.error('Failed to disable blocking:', error);
+  }
 };
 
 const DEFAULT_STATE: State = {
@@ -473,14 +493,48 @@ chrome.runtime.onMessage.addListener(
         }
 
         case 'UPDATE_BLOCKLIST': {
-          // Always save the blocklist - enforcement happens during active sessions
-          await chrome.storage.local.set({ blockedSites: request.sites || [] });
-          // Update rules if a session is currently active
-          const isBlockingActive = state.isRunning && !state.isPaused;
-          if (isBlockingActive) {
-            await updateBlockingRules(request.sites || [], true);
+          try {
+            // Always save the blocklist
+            await chrome.storage.local.set({
+              blockedSites: request.sites || [],
+            });
+
+            // Update rules if a session is currently active
+            const isBlockingActive = state.isRunning && !state.isPaused;
+            if (isBlockingActive) {
+              console.log('Updating blocking rules for active session');
+              await updateBlockingRules(request.sites || [], true);
+            } else {
+              console.log(
+                'Blocking rules saved (will activate on next session start)',
+              );
+            }
+
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error('Error updating blocklist:', error);
+            sendResponse({ success: false, error: String(error) });
           }
-          sendResponse({ success: true });
+          break;
+        }
+
+        case 'PREVIEW_SOUND': {
+          try {
+            // Ensure offscreen document exists
+            await ensureOffscreen();
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            // Send play command to offscreen
+            await chrome.runtime.sendMessage({
+              type: 'PLAY_SOUND',
+              payload: request.payload,
+            });
+
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error('Error previewing sound:', error);
+            sendResponse({ success: false, error: String(error) });
+          }
           break;
         }
 

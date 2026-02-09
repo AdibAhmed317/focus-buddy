@@ -69,6 +69,27 @@ const playBuiltInSound = async (soundId: string) => {
     // Ensure audio context is ready
     await resumeAudioContextWithRetry();
 
+    // Check if it's a sound file (ends with .mp3 or .wav)
+    if (soundId.endsWith('.mp3') || soundId.endsWith('.wav')) {
+      try {
+        const soundPath = `/sounds/${soundId}`;
+        console.log('Loading built-in sound file:', soundPath);
+        const audio = new Audio(soundPath);
+        audio.volume = 1.0;
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          console.log('Built-in sound file played successfully:', soundId);
+        }
+        return;
+      } catch (error) {
+        console.error('Error loading sound file:', soundId, error);
+        // Fall through to synthetic sound generation as fallback
+      }
+    }
+
+    // Fallback: Generate synthetic sounds for legacy/unknown IDs
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 

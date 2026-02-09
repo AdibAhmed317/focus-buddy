@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { ProFeatureLock } from '@/components/ProFeatureLock';
 import { usePro } from '@/contexts/ProContext';
 import {
@@ -17,10 +16,6 @@ import {
   TrendingUp,
   Trophy,
   ArrowLeft,
-  Timer,
-  BarChart3,
-  Shield,
-  Save,
 } from 'lucide-react';
 import type { FocusSession, SessionStats } from '@/lib/sessionManager';
 
@@ -101,60 +96,17 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className='p-6'>
-        <h1 className='text-2xl font-bold mb-6'>Focus Analytics</h1>
+      <div className='p-4'>
+        <h1 className='text-lg font-bold mb-4'>Focus Analytics</h1>
         <p>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className='min-h-screen bg-background p-2 md:p-4 flex flex-col'>
-      {/* Navigation Bar */}
-      <div className='w-full mb-4'>
-        <div className='flex items-center justify-center bg-card rounded-lg px-2 py-2 border border-border overflow-x-auto'>
-          <div className='flex gap-2 md:gap-3 flex-shrink-0'>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-10 justify-center'
-              onClick={() => navigate('/')}
-            >
-              <Timer className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Focus</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-            >
-              <BarChart3 className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Analytics</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-              onClick={() => navigate('/blocking')}
-            >
-              <Shield className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Blocking</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-              onClick={() => navigate('/presets')}
-            >
-              <Save className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Presets</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className='w-full flex-1 overflow-auto'>
-        <h1 className='text-2xl font-bold mb-6'>Focus Analytics</h1>
+    <div className='bg-background p-3 flex flex-col gap-3 text-sm h-full'>
+      <div className='w-full flex-1 overflow-auto min-h-0'>
+        <h1 className='text-lg font-semibold mb-4'>Focus Analytics</h1>
 
         <ProFeatureLock
           featureName='Focus Analytics & History'
@@ -165,14 +117,14 @@ export default function Analytics() {
           {stats && (
             <>
               {/* Stats Grid */}
-              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6'>
+              <div className='grid grid-cols-1 gap-2 mb-4'>
                 <Card>
                   <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
                     <CardTitle className='text-sm font-medium'>Today</CardTitle>
                     <Clock className='h-4 w-4 text-muted-foreground' />
                   </CardHeader>
                   <CardContent>
-                    <div className='text-2xl font-bold'>
+                    <div className='text-lg font-bold'>
                       {formatDuration(stats.todayFocusTime)}
                     </div>
                     <p className='text-xs text-muted-foreground'>
@@ -189,7 +141,7 @@ export default function Analytics() {
                     <Calendar className='h-4 w-4 text-muted-foreground' />
                   </CardHeader>
                   <CardContent>
-                    <div className='text-2xl font-bold'>
+                    <div className='text-lg font-bold'>
                       {formatDuration(stats.weekFocusTime)}
                     </div>
                     <p className='text-xs text-muted-foreground'>
@@ -206,7 +158,7 @@ export default function Analytics() {
                     <Flame className='h-4 w-4 text-orange-500' />
                   </CardHeader>
                   <CardContent>
-                    <div className='text-2xl font-bold'>
+                    <div className='text-lg font-bold'>
                       {stats.currentStreak}
                     </div>
                     <p className='text-xs text-muted-foreground'>
@@ -223,7 +175,7 @@ export default function Analytics() {
                     <Trophy className='h-4 w-4 text-muted-foreground' />
                   </CardHeader>
                   <CardContent>
-                    <div className='text-2xl font-bold'>
+                    <div className='text-lg font-bold'>
                       {stats.totalSessions}
                     </div>
                     <p className='text-xs text-muted-foreground'>
@@ -234,28 +186,30 @@ export default function Analytics() {
               </div>
 
               {/* All-Time Stats */}
-              <Card className='mb-6'>
+              <Card className='mb-4'>
                 <CardHeader>
-                  <CardTitle className='flex items-center gap-2'>
-                    <TrendingUp className='h-5 w-5' />
+                  <CardTitle className='flex items-center gap-2 text-base'>
+                    <TrendingUp className='h-4 w-4' />
                     All-Time Stats
                   </CardTitle>
-                  <CardDescription>Your overall focus journey</CardDescription>
+                  <CardDescription className='text-xs'>
+                    Your overall focus journey
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <CardContent className='grid grid-cols-1 md:grid-cols-2 gap-3'>
                   <div>
-                    <p className='text-sm text-muted-foreground'>
+                    <p className='text-xs text-muted-foreground'>
                       Total Focus Time
                     </p>
-                    <p className='text-xl font-bold'>
+                    <p className='text-lg font-bold'>
                       {formatDuration(stats.totalFocusTime)}
                     </p>
                   </div>
                   <div>
-                    <p className='text-sm text-muted-foreground'>
+                    <p className='text-xs text-muted-foreground'>
                       Longest Session
                     </p>
-                    <p className='text-xl font-bold'>
+                    <p className='text-lg font-bold'>
                       {formatDuration(stats.longestSession)}
                     </p>
                   </div>
@@ -265,28 +219,30 @@ export default function Analytics() {
               {/* Recent Sessions */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Sessions</CardTitle>
-                  <CardDescription>Your last 10 focus sessions</CardDescription>
+                  <CardTitle className='text-base'>Recent Sessions</CardTitle>
+                  <CardDescription className='text-xs'>
+                    Your last 10 focus sessions
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {sessions.length === 0 ? (
-                    <p className='text-sm text-muted-foreground'>
+                    <p className='text-xs text-muted-foreground'>
                       No sessions yet. Start focusing to see your history!
                     </p>
                   ) : (
-                    <div className='space-y-3'>
+                    <div className='space-y-2'>
                       {sessions.map((session) => (
                         <div
                           key={session.id}
-                          className='flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors'
+                          className='flex items-center justify-between p-2 rounded-lg border bg-card hover:bg-accent/50 transition-colors'
                         >
                           <div className='flex-1'>
                             <div className='flex items-center gap-2'>
-                              <span className='text-sm font-medium'>
+                              <span className='text-xs font-medium'>
                                 {formatDate(session.startTime)}
                               </span>
                               <span
-                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                className={`text-[11px] px-2 py-0.5 rounded-full ${
                                   session.status === 'completed'
                                     ? 'bg-green-100 text-green-700'
                                     : session.status === 'cancelled'
@@ -299,13 +255,13 @@ export default function Analytics() {
                                 {session.status}
                               </span>
                             </div>
-                            <p className='text-xs text-muted-foreground mt-1'>
+                            <p className='text-[11px] text-muted-foreground mt-0.5'>
                               {session.soundsPlayed} reminder
                               {session.soundsPlayed !== 1 ? 's' : ''}
                             </p>
                           </div>
                           <div className='text-right'>
-                            <p className='text-sm font-semibold'>
+                            <p className='text-xs font-semibold'>
                               {formatDuration(session.duration)}
                             </p>
                           </div>

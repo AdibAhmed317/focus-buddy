@@ -72,10 +72,12 @@ export class SessionManager {
       this.currentSession.endTime - this.currentSession.startTime;
     this.currentSession.status = status;
 
+    // Save the completed session BEFORE clearing currentSession
+    await this.saveSessions();
+
     const completedSession = { ...this.currentSession };
     this.currentSession = null;
 
-    await this.saveSessions();
     return completedSession;
   }
 
@@ -95,21 +97,24 @@ export class SessionManager {
 
   async getStats(): Promise<SessionStats> {
     const sessions = await this.getSessions();
-    const completedSessions = sessions.filter((s) => s.status === 'completed');
+    // Count all sessions that have duration (completed or cancelled - both represent actual focus time)
+    const focusSessions = sessions.filter(
+      (s) => s.duration > 0 && (s.status === 'completed' || s.status === 'cancelled'),
+    );
 
-    const totalSessions = completedSessions.length;
-    const totalFocusTime = completedSessions.reduce(
+    const totalSessions = focusSessions.length;
+    const totalFocusTime = focusSessions.reduce(
       (sum, s) => sum + s.duration,
       0,
     );
     const longestSession = Math.max(
-      ...completedSessions.map((s) => s.duration),
+      ...focusSessions.map((s) => s.duration),
       0,
     );
 
     // Calculate today's focus time
     const todayStart = new Date().setHours(0, 0, 0, 0);
-    const todayFocusTime = completedSessions
+    const todayFocusTime = focusSessions
       .filter((s) => s.startTime >= todayStart)
       .reduce((sum, s) => sum + s.duration, 0);
 
@@ -117,12 +122,12 @@ export class SessionManager {
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
-    const weekFocusTime = completedSessions
+    const weekFocusTime = focusSessions
       .filter((s) => s.startTime >= weekStart.getTime())
       .reduce((sum, s) => sum + s.duration, 0);
 
     // Calculate streak
-    const currentStreak = this.calculateStreak(completedSessions);
+    const currentStreak = this.calculateStreak(focusSessions);
 
     return {
       totalSessions,

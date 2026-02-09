@@ -12,17 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ProFeatureLock } from '@/components/ProFeatureLock';
 import { usePro } from '@/contexts/ProContext';
-import {
-  Save,
-  Trash2,
-  Play,
-  Timer,
-  BarChart3,
-  Shield,
-  Edit2,
-  Check,
-  X,
-} from 'lucide-react';
+import { Save, Trash2, Play, Edit2, Check, X, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -34,12 +24,19 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
+interface BlockedSite {
+  id: string;
+  url: string;
+  addedAt: number;
+}
+
 interface FocusPreset {
   id: string;
   name: string;
   minMinutes: number;
   maxMinutes: number;
   sound: string;
+  blockedSites?: BlockedSite[];
   createdAt: number;
 }
 
@@ -49,11 +46,13 @@ export default function Presets() {
   const [presets, setPresets] = useState<FocusPreset[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [newWebsite, setNewWebsite] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     minMinutes: 2,
     maxMinutes: 10,
     sound: 'chime',
+    blockedSites: [] as BlockedSite[],
   });
 
   useEffect(() => {
@@ -105,6 +104,15 @@ export default function Presets() {
 
   const applyPreset = async (preset: FocusPreset) => {
     try {
+      // Update blocklist if preset has blocked sites
+      const blockedSites = preset.blockedSites || [];
+      if (blockedSites.length > 0) {
+        await chrome.runtime.sendMessage({
+          type: 'UPDATE_BLOCKLIST',
+          sites: blockedSites,
+        });
+      }
+
       await chrome.runtime.sendMessage({
         type: 'START_TIMER',
         minMinutes: preset.minMinutes,
@@ -124,13 +132,53 @@ export default function Presets() {
       minMinutes: preset.minMinutes,
       maxMinutes: preset.maxMinutes,
       sound: preset.sound,
+      blockedSites: [...(preset.blockedSites || [])],
     });
     setIsDialogOpen(true);
   };
 
   const resetForm = () => {
-    setFormData({ name: '', minMinutes: 2, maxMinutes: 10, sound: 'chime' });
+    setFormData({
+      name: '',
+      minMinutes: 2,
+      maxMinutes: 10,
+      sound: 'chime',
+      blockedSites: [],
+    });
+    setNewWebsite('');
     setEditingId(null);
+  };
+
+  const addBlockedSiteToPreset = () => {
+    if (!newWebsite.trim()) return;
+
+    let url = newWebsite.trim().toLowerCase();
+    url = url.replace(/^https?:\/\//, '');
+    url = url.replace(/^www\./, '');
+    url = url.replace(/\/$/, '');
+
+    if (!url.includes('.')) return;
+
+    if (formData.blockedSites.some((site) => site.url === url)) return;
+
+    const newSite: BlockedSite = {
+      id: crypto.randomUUID(),
+      url,
+      addedAt: Date.now(),
+    };
+
+    setFormData({
+      ...formData,
+      blockedSites: [...formData.blockedSites, newSite],
+    });
+    setNewWebsite('');
+  };
+
+  const removeBlockedSiteFromPreset = (id: string) => {
+    setFormData({
+      ...formData,
+      blockedSites: formData.blockedSites.filter((site) => site.id !== id),
+    });
   };
 
   const handleUpgrade = () => {
@@ -141,55 +189,12 @@ export default function Presets() {
   const canAddMore = isPro || presets.length < freeLimit;
 
   return (
-    <div className='min-h-screen bg-background p-2 md:p-4 flex flex-col'>
-      {/* Navigation Bar */}
-      <div className='w-full mb-4'>
-        <div className='flex items-center justify-center bg-card rounded-lg px-2 py-2 border border-border overflow-x-auto'>
-          <div className='flex gap-2 md:gap-3 flex-shrink-0'>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-10 justify-center'
-              onClick={() => navigate('/')}
-            >
-              <Timer className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Focus</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-              onClick={() => navigate('/analytics')}
-            >
-              <BarChart3 className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Analytics</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-              onClick={() => navigate('/blocking')}
-            >
-              <Shield className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Blocking</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-            >
-              <Save className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Presets</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className='w-full flex-1 overflow-auto'>
-        <div className='flex items-center justify-between mb-6'>
+    <div className='bg-background p-3 flex flex-col gap-3 text-sm h-full'>
+      <div className='w-full flex-1 overflow-auto min-h-0'>
+        <div className='flex items-center justify-between mb-4'>
           <div>
-            <h1 className='text-2xl font-bold'>Focus Presets</h1>
-            <p className='text-sm text-muted-foreground mt-1'>
+            <h1 className='text-lg font-semibold'>Focus Presets</h1>
+            <p className='text-xs text-muted-foreground mt-1'>
               Save and quickly apply your favorite focus settings
             </p>
           </div>
@@ -201,10 +206,10 @@ export default function Presets() {
           onUpgrade={handleUpgrade}
           isLocked={false}
         >
-          <div className='mb-6 flex justify-between items-center'>
+          <div className='mb-4 flex justify-between items-center'>
             <div>
               {!isPro && (
-                <Badge variant='secondary'>
+                <Badge variant='secondary' className='text-xs'>
                   {presets.length}/{freeLimit} presets used
                 </Badge>
               )}
@@ -292,6 +297,57 @@ export default function Presets() {
                       <option value='ding'>Ding</option>
                     </select>
                   </div>
+
+                  {/* Website Blocking Section */}
+                  <div className='border-t pt-4'>
+                    <Label className='text-sm font-semibold flex items-center gap-2 mb-2'>
+                      <Shield className='w-4 h-4' />
+                      Websites to Block (Optional)
+                    </Label>
+                    <div className='flex gap-2 mb-3'>
+                      <Input
+                        placeholder='e.g., youtube.com'
+                        value={newWebsite}
+                        onChange={(e) => setNewWebsite(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' && addBlockedSiteToPreset()
+                        }
+                        className='text-xs h-8'
+                      />
+                      <Button
+                        type='button'
+                        onClick={addBlockedSiteToPreset}
+                        size='sm'
+                        variant='outline'
+                        className='h-8 px-2'
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    {formData.blockedSites.length > 0 && (
+                      <div className='space-y-1.5 bg-muted/50 rounded p-2'>
+                        {formData.blockedSites.map((site) => (
+                          <div
+                            key={site.id}
+                            className='flex items-center justify-between text-xs p-1.5 bg-background rounded border'
+                          >
+                            <span className='font-medium'>{site.url}</span>
+                            <Button
+                              type='button'
+                              onClick={() =>
+                                removeBlockedSiteFromPreset(site.id)
+                              }
+                              variant='ghost'
+                              size='sm'
+                              className='h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600'
+                            >
+                              <X className='w-3 h-3' />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button
@@ -312,27 +368,27 @@ export default function Presets() {
           </div>
 
           {!canAddMore && (
-            <div className='mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg'>
-              <p className='text-sm text-orange-700 mb-2'>
+            <div className='mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg'>
+              <p className='text-xs text-orange-700 mb-2'>
                 Free users can save up to {freeLimit} presets. Upgrade to Pro
                 for unlimited presets.
               </p>
               <Button
                 onClick={handleUpgrade}
                 size='sm'
-                className='bg-orange-500 hover:bg-orange-600'
+                className='bg-orange-500 hover:bg-orange-600 text-xs h-8'
               >
                 Upgrade to Pro
               </Button>
             </div>
           )}
 
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
             {presets.length === 0 ? (
               <Card className='col-span-full'>
-                <CardContent className='py-12 text-center'>
-                  <Save className='w-12 h-12 mx-auto text-muted-foreground mb-4' />
-                  <p className='text-muted-foreground'>
+                <CardContent className='py-8 text-center'>
+                  <Save className='w-10 h-10 mx-auto text-muted-foreground mb-3' />
+                  <p className='text-xs text-muted-foreground'>
                     No presets yet. Create your first preset above!
                   </p>
                 </CardContent>
@@ -344,47 +400,59 @@ export default function Presets() {
                   className='hover:shadow-md transition-shadow'
                 >
                   <CardHeader>
-                    <CardTitle className='flex items-center justify-between'>
-                      <span>{preset.name}</span>
-                      <div className='flex gap-2'>
+                    <CardTitle className='flex items-center justify-between text-base'>
+                      <span className='truncate'>{preset.name}</span>
+                      <div className='flex gap-1 flex-shrink-0'>
                         <Button
                           variant='ghost'
                           size='sm'
                           onClick={() => startEdit(preset)}
+                          className='h-8 w-8 p-0'
                         >
-                          <Edit2 className='w-4 h-4' />
+                          <Edit2 className='w-3 h-3' />
                         </Button>
                         <Button
                           variant='ghost'
                           size='sm'
                           onClick={() => deletePreset(preset.id)}
-                          className='hover:bg-red-50 hover:text-red-600'
+                          className='h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600'
                         >
-                          <Trash2 className='w-4 h-4' />
+                          <Trash2 className='w-3 h-3' />
                         </Button>
                       </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className='space-y-2 mb-4'>
-                      <div className='flex justify-between text-sm'>
+                    <div className='space-y-1.5 mb-3'>
+                      <div className='flex justify-between text-xs'>
                         <span className='text-muted-foreground'>Interval:</span>
                         <span className='font-medium'>
                           {preset.minMinutes}-{preset.maxMinutes} min
                         </span>
                       </div>
-                      <div className='flex justify-between text-sm'>
+                      <div className='flex justify-between text-xs'>
                         <span className='text-muted-foreground'>Sound:</span>
                         <span className='font-medium capitalize'>
                           {preset.sound}
                         </span>
                       </div>
+                      {(preset.blockedSites?.length ?? 0) > 0 && (
+                        <div className='flex justify-between text-xs'>
+                          <span className='text-muted-foreground'>
+                            Blocked Sites:
+                          </span>
+                          <span className='font-medium text-orange-600'>
+                            {preset.blockedSites?.length}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <Button
                       onClick={() => applyPreset(preset)}
-                      className='w-full gap-2'
+                      className='w-full gap-2 text-xs h-8'
+                      size='sm'
                     >
-                      <Play className='w-4 h-4' />
+                      <Play className='w-3 h-3' />
                       Start Focus
                     </Button>
                   </CardContent>

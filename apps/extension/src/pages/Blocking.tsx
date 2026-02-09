@@ -11,15 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ProFeatureLock } from '@/components/ProFeatureLock';
 import { usePro } from '@/contexts/ProContext';
-import {
-  Shield,
-  Trash2,
-  Plus,
-  Timer,
-  BarChart3,
-  AlertCircle,
-  Save,
-} from 'lucide-react';
+import { Shield, Trash2, Plus, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 
@@ -69,53 +61,80 @@ export default function Blocking() {
       return;
     }
 
-    // Validate and normalize URL
-    let url = newSite.trim().toLowerCase();
+    try {
+      // Validate and normalize URL
+      let url = newSite.trim().toLowerCase();
 
-    // Remove protocol if present
-    url = url.replace(/^https?:\/\//, '');
+      // Remove protocol if present
+      url = url.replace(/^https?:\/\//, '');
 
-    // Remove www. prefix
-    url = url.replace(/^www\./, '');
+      // Remove www. prefix
+      url = url.replace(/^www\./, '');
 
-    // Remove trailing slash
-    url = url.replace(/\/$/, '');
+      // Remove trailing slash
+      url = url.replace(/\/$/, '');
 
-    // Check if already blocked
-    if (blockedSites.some((site) => site.url === url)) {
-      setError('This site is already in your blocklist');
-      return;
+      // Basic validation
+      if (!url.includes('.')) {
+        setError('Please enter a valid domain (e.g., youtube.com)');
+        return;
+      }
+
+      // Check if already blocked
+      if (blockedSites.some((site) => site.url === url)) {
+        setError('This site is already in your blocklist');
+        return;
+      }
+
+      const newBlockedSite: BlockedSite = {
+        id: crypto.randomUUID(),
+        url,
+        addedAt: Date.now(),
+      };
+
+      const updatedSites = [...blockedSites, newBlockedSite];
+      setBlockedSites(updatedSites);
+      await chrome.storage.local.set({ blockedSites: updatedSites });
+
+      // Notify background script to update blocking rules
+      const response = await chrome.runtime.sendMessage({
+        type: 'UPDATE_BLOCKLIST',
+        sites: updatedSites,
+      });
+
+      if (!response?.success) {
+        throw new Error('Failed to update blocking rules');
+      }
+
+      setNewSite('');
+    } catch (err) {
+      const errorMsg =
+        err instanceof Error ? err.message : 'Failed to add website';
+      setError(errorMsg);
+      console.error('Error adding blocked site:', err);
     }
-
-    const newBlockedSite: BlockedSite = {
-      id: crypto.randomUUID(),
-      url,
-      addedAt: Date.now(),
-    };
-
-    const updatedSites = [...blockedSites, newBlockedSite];
-    setBlockedSites(updatedSites);
-    await chrome.storage.local.set({ blockedSites: updatedSites });
-
-    // Notify background script to update blocking rules
-    await chrome.runtime.sendMessage({
-      type: 'UPDATE_BLOCKLIST',
-      sites: updatedSites,
-    });
-
-    setNewSite('');
   };
 
   const removeSite = async (id: string) => {
-    const updatedSites = blockedSites.filter((site) => site.id !== id);
-    setBlockedSites(updatedSites);
-    await chrome.storage.local.set({ blockedSites: updatedSites });
+    try {
+      const updatedSites = blockedSites.filter((site) => site.id !== id);
+      setBlockedSites(updatedSites);
+      await chrome.storage.local.set({ blockedSites: updatedSites });
 
-    // Notify background script to update blocking rules
-    await chrome.runtime.sendMessage({
-      type: 'UPDATE_BLOCKLIST',
-      sites: updatedSites,
-    });
+      // Notify background script to update blocking rules
+      const response = await chrome.runtime.sendMessage({
+        type: 'UPDATE_BLOCKLIST',
+        sites: updatedSites,
+      });
+
+      if (!response?.success) {
+        throw new Error('Failed to update blocking rules');
+      }
+    } catch (err) {
+      console.error('Error removing blocked site:', err);
+      // Reload sites on error
+      await loadBlockedSites();
+    }
   };
 
   const handleUpgrade = () => {
@@ -126,54 +145,11 @@ export default function Blocking() {
   const canAddMore = isPro || blockedSites.length < freeLimit;
 
   return (
-    <div className='bg-background p-2 md:p-4 flex flex-col'>
-      {/* Navigation Bar */}
-      <div className='w-full mb-4'>
-        <div className='flex items-center justify-center bg-card rounded-lg px-2 py-2 border border-border overflow-x-auto'>
-          <div className='flex gap-2 md:gap-3 flex-shrink-0'>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-10 justify-center'
-              onClick={() => navigate('/')}
-            >
-              <Timer className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Focus</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-              onClick={() => navigate('/analytics')}
-            >
-              <BarChart3 className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Analytics</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-            >
-              <Shield className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Blocking</span>
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 h-9 justify-center'
-              onClick={() => navigate('/presets')}
-            >
-              <Save className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>Presets</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className='w-full flex-1 overflow-auto'>
-        <div className='flex items-center justify-between mb-6'>
+    <div className='bg-background p-3 flex flex-col gap-3 text-sm h-full'>
+      <div className='w-full flex-1 overflow-auto min-h-0'>
+        <div className='flex items-center justify-between mb-4'>
           <div>
-            <h1 className='text-xl font-bold'>Website Blocking</h1>
+            <h1 className='text-lg font-semibold'>Website Blocking</h1>
             <p className='text-xs text-muted-foreground mt-1'>
               Block distracting websites during focus sessions
             </p>
@@ -187,7 +163,7 @@ export default function Blocking() {
         </div>
 
         {isBlockingActive && (
-          <Alert className='mb-6'>
+          <Alert className='mb-4'>
             <AlertCircle className='h-4 w-4' />
             <AlertDescription className='text-xs'>
               Website blocking is currently active. Blocked sites will be
@@ -202,7 +178,7 @@ export default function Blocking() {
           onUpgrade={handleUpgrade}
           isLocked={false} // Always show UI, but limit functionality
         >
-          <Card className='mb-6'>
+          <Card className='mb-4'>
             <CardHeader>
               <CardTitle className='text-base'>Add Website to Block</CardTitle>
               <CardDescription className='text-xs'>
@@ -237,7 +213,7 @@ export default function Blocking() {
               </div>
               {error && <p className='text-xs text-red-500 mt-2'>{error}</p>}
               {!canAddMore && (
-                <div className='mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg'>
+                <div className='mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg'>
                   <p className='text-xs text-orange-700'>
                     Free users can block up to {freeLimit} sites. Upgrade to Pro
                     for unlimited blocking.
@@ -273,12 +249,14 @@ export default function Blocking() {
                   {blockedSites.map((site) => (
                     <div
                       key={site.id}
-                      className='flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors'
+                      className='flex items-center justify-between p-2 rounded-lg border bg-card hover:bg-accent/50 transition-colors'
                     >
-                      <div className='flex items-center gap-3'>
-                        <Shield className='w-4 h-4 text-muted-foreground' />
-                        <div>
-                          <p className='text-xs font-medium'>{site.url}</p>
+                      <div className='flex items-center gap-2'>
+                        <Shield className='w-3 h-3 text-muted-foreground flex-shrink-0' />
+                        <div className='min-w-0'>
+                          <p className='text-xs font-medium truncate'>
+                            {site.url}
+                          </p>
                           <p className='text-[11px] text-muted-foreground'>
                             Added {new Date(site.addedAt).toLocaleDateString()}
                           </p>
@@ -288,9 +266,9 @@ export default function Blocking() {
                         variant='ghost'
                         size='sm'
                         onClick={() => removeSite(site.id)}
-                        className='hover:bg-red-50 hover:text-red-600'
+                        className='hover:bg-red-50 hover:text-red-600 h-7 w-7 p-0 flex-shrink-0 ml-2'
                       >
-                        <Trash2 className='w-4 h-4' />
+                        <Trash2 className='w-3 h-3' />
                       </Button>
                     </div>
                   ))}

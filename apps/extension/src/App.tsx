@@ -23,8 +23,8 @@ const App = () => (
           <Routes>
             <Route path='/' element={<Index />} />
             <Route path='/index.html' element={<Index />} />
-            <Route path='/analytics' element={<Analytics />} />
             <Route path='/blocking' element={<Blocking />} />
+            <Route path='/analytics' element={<Analytics />} />
             <Route path='/presets' element={<Presets />} />
             <Route path='/upgrade' element={<Upgrade />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

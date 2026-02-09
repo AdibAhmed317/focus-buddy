@@ -13,6 +13,18 @@ const builtInSounds: Sound[] = [
   { id: 'bell', name: 'Soft Bell', isBuiltIn: true },
   { id: 'ding', name: 'Quick Ding', isBuiltIn: true },
   { id: 'tone', name: 'Focus Tone', isBuiltIn: true },
+  {
+    id: 'dun-dun-dun-sound-effect-brass_8nFBccR.mp3',
+    name: 'Dun Dun Dun',
+    isBuiltIn: true,
+  },
+  { id: 'faaah.mp3', name: 'Faaah', isBuiltIn: true },
+  { id: 'mac-quack.mp3', name: 'Mac Quack', isBuiltIn: true },
+  {
+    id: 'vine-boom-sound-effect_KT89XIq.mp3',
+    name: 'Vine Boom',
+    isBuiltIn: true,
+  },
 ];
 
 interface RandomFocusSoundProps {
@@ -200,7 +212,7 @@ const RandomFocusSound = ({
     setTimeUntilNextSound(0);
     timeUntilNextSoundRef.current = 0;
 
-    sendMessage('STOP_TIMER');
+    sendMessage('STOP_TIMER', { completed: true });
   };
 
   const handlePause = () => {
@@ -270,36 +282,25 @@ const RandomFocusSound = ({
   };
 
   return (
-    <div className='w-[360px] bg-background p-5'>
-      {/* Header */}
-      <div className='flex items-center gap-3 mb-6'>
-        <img src='/logo.png' alt='Focus Buddy' className='w-8 h-8 rounded-lg' />
-        <div>
-          <h1 className='text-lg font-semibold text-foreground tracking-tight'>
-            Focus Buddy
-          </h1>
-          <p className='text-xs text-muted-foreground'>
-            Stay focused with random reminders
-          </p>
-        </div>
-      </div>
+    <div className='w-full bg-background p-3'>
+      {/* Note: Header is now in PopupApp */}
 
       {/* Time Interval Section */}
-      <div className='bg-card rounded-xl p-4 shadow-soft mb-4'>
-        <div className='flex items-center gap-2 mb-3'>
-          <Clock className='w-4 h-4 text-muted-foreground' />
-          <span className='text-sm font-medium text-foreground'>
+      <div className='bg-card rounded-lg p-2 border border-border mb-3'>
+        <div className='flex items-center gap-2 mb-2'>
+          <Clock className='w-3 h-3 text-muted-foreground' />
+          <span className='text-xs font-medium text-foreground'>
             Interval Range
           </span>
         </div>
 
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2'>
           <div className='flex-1'>
             <label
               htmlFor='min-input'
-              className='block text-xs text-muted-foreground mb-1.5'
+              className='block text-xs text-muted-foreground mb-1'
             >
-              Min (minutes)
+              Min
             </label>
             <input
               id='min-input'
@@ -319,19 +320,19 @@ const RandomFocusSound = ({
                 }
               }}
               disabled={isRunning}
-              className='w-full h-10 px-3 rounded-lg bg-secondary border border-border text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+              className='w-full h-8 px-2 rounded text-xs bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed'
               aria-label='Minimum interval in minutes'
             />
           </div>
 
-          <span className='text-muted-foreground mt-5'>—</span>
+          <span className='text-muted-foreground flex-shrink-0 mt-4'>—</span>
 
           <div className='flex-1'>
             <label
               htmlFor='max-input'
-              className='block text-xs text-muted-foreground mb-1.5'
+              className='block text-xs text-muted-foreground mb-1'
             >
-              Max (minutes)
+              Max
             </label>
             <input
               id='max-input'
@@ -359,15 +360,15 @@ const RandomFocusSound = ({
       </div>
 
       {/* Sound Selection Section */}
-      <div className='bg-card rounded-xl p-4 shadow-soft mb-4'>
-        <div className='flex items-center gap-2 mb-3'>
-          <Music className='w-4 h-4 text-muted-foreground' />
-          <span className='text-sm font-medium text-foreground'>
+      <div className='bg-card rounded-lg p-2 border border-border mb-3'>
+        <div className='flex items-center gap-2 mb-2'>
+          <Music className='w-3 h-3 text-muted-foreground' />
+          <span className='text-xs font-medium text-foreground'>
             Alert Sound
           </span>
         </div>
 
-        <div className='flex gap-2 items-end'>
+        <div className='flex gap-1 items-end'>
           <div className='flex-1 relative'>
             <select
               value={selectedSound}
@@ -409,6 +410,28 @@ const RandomFocusSound = ({
               </svg>
             </div>
           </div>
+
+          <button
+            onClick={async () => {
+              try {
+                // Send to background to ensure offscreen doc exists
+                await chrome.runtime.sendMessage({
+                  type: 'PREVIEW_SOUND',
+                  payload: {
+                    selectedSound,
+                    customSounds,
+                  },
+                });
+              } catch (e) {
+                console.error('Preview sound failed:', e);
+              }
+            }}
+            className='h-10 px-3 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-all flex items-center gap-1.5 shrink-0'
+            aria-label='Preview selected sound'
+            title='Preview sound'
+          >
+            <Play className='w-4 h-4' />
+          </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
