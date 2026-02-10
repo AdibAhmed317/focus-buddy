@@ -99,7 +99,9 @@ export class SessionManager {
     const sessions = await this.getSessions();
     // Count all sessions that have duration (completed or cancelled - both represent actual focus time)
     const focusSessions = sessions.filter(
-      (s) => s.duration > 0 && (s.status === 'completed' || s.status === 'cancelled'),
+      (s) =>
+        s.duration > 0 &&
+        (s.status === 'completed' || s.status === 'cancelled'),
     );
 
     const totalSessions = focusSessions.length;
@@ -107,10 +109,7 @@ export class SessionManager {
       (sum, s) => sum + s.duration,
       0,
     );
-    const longestSession = Math.max(
-      ...focusSessions.map((s) => s.duration),
-      0,
-    );
+    const longestSession = Math.max(...focusSessions.map((s) => s.duration), 0);
 
     // Calculate today's focus time
     const todayStart = new Date().setHours(0, 0, 0, 0);
